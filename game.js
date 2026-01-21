@@ -2,118 +2,123 @@ import { db } from "./firebase.js";
 import { ref, set, onValue, update, remove } 
 from "https://www.gstatic.com/firebasejs/12.8.0/firebase-database.js";
 
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
-
-const GRID = 20;
-const SIZE = 18;
-const WIDTH = 400;
+const boardEl = document.getElementById("board");
+const info = document.getElementById("info");
+const resetBtn = document.getElementById("resetBtn");
 
 let room = null;
+let symbol = null;
 const playerId = "p" + Math.floor(Math.random() * 99999);
 
-let snake = [{ x: 200, y: 200 }];
-let dir = { x: GRID, y: 0 };
-let score = 0;
-let alive = true;
+/* ===== CREATE BOARD ===== */
+const cells = [];
+for (let i = 0; i < 9; i++) {
+  const div = document.createElement("div");
+  div.className = "cell";
+  div.onclick = () => makeMove(i);
+  boardEl.appendChild(div);
+  cells.push(div);
+}
 
-/* ========== INPUT ========== */
-document.addEventListener("keydown", e => {
-  if (e.key === "ArrowUp") dir = { x: 0, y: -GRID };
-  if (e.key === "ArrowDown") dir = { x: 0, y: GRID };
-  if (e.key === "ArrowLeft") dir = { x: -GRID, y: 0 };
-  if (e.key === "ArrowRight") dir = { x: GRID, y: 0 };
-});
-
-/* ========== JOIN ROOM ========== */
+/* ===== JOIN ROOM ===== */
 document.getElementById("joinBtn").onclick = () => {
   room = document.getElementById("roomInput").value;
   if (!room) return alert("Isi nama room!");
 
-  document.getElementById("roomText").innerText = "Room: " + room;
   document.getElementById("lobby").style.display = "none";
 
-  const foodRef = ref(db, `rooms/${room}/food`);
-  set(foodRef, {
-    x: Math.floor(Math.random() * 20) * GRID,
-    y: Math.floor(Math.random() * 20) * GRID
-  });
+  const roomRef = ref(db, `rooms/${room}`);
 
-  gameLoop();
+  onValue(roomRef, snap => {
+    if (!snap.exists()) {
+      set(roomRef, {
+        board: Array(9).fill(""),
+        turn: "X",
+        players: { [playerId]: "X" }
+      });
+      symbol = "X";
+    } else {
+      const data = snap.val();
+      const players = data.players || {};
+      if (Object.keys(players).length >= 2) {
+        alert("Room penuh!");
+        location.reload();
+      }
+      symbol = "O";
+      update(roomRef, {
+        [`players/${playerId}`]: "O"
+      });
+    }
+  }, { onlyOnce: true });
+
+  listenRoom();
 };
 
-/* ========== GAME LOOP ========== */
-function gameLoop() {
-  const playerRef = ref(db, `rooms/${room}/players/${playerId}`);
-
-  setInterval(() => {
-    if (!alive) return;
-
-    const head = {
-      x: snake[0].x + dir.x,
-      y: snake[0].y + dir.y
-    };
-
-    // WALL COLLISION
-    if (head.x < 0 || head.y < 0 || head.x >= WIDTH || head.y >= WIDTH) {
-      alive = false;
-      remove(playerRef);
-      alert("Game Over!");
-      return;
-    }
-
-    snake.unshift(head);
-
-    onValue(ref(db, `rooms/${room}/food`), snap => {
-      const food = snap.val();
-      if (food && head.x === food.x && head.y === food.y) {
-        score++;
-        set(ref(db, `rooms/${room}/food`), {
-          x: Math.floor(Math.random() * 20) * GRID,
-          y: Math.floor(Math.random() * 20) * GRID
-        });
-      } else {
-        snake.pop();
-      }
-    }, { onlyOnce: true });
-
-    set(playerRef, { snake, score });
-
-  }, 150);
-
+/* ===== LISTENER ===== */
+function listenRoom() {
   onValue(ref(db, `rooms/${room}`), snap => {
-    ctx.clearRect(0, 0, WIDTH, WIDTH);
     const data = snap.val();
     if (!data) return;
 
-    // FOOD
-    ctx.fillStyle = "red";
-    ctx.fillRect(data.food.x, data.food.y, SIZE, SIZE);
-
-    // PLAYERS
-    ctx.fillStyle = "black";
-    Object.entries(data.players || {}).forEach(([id, p]) => {
-      p.snake.forEach(part => {
-        ctx.fillRect(part.x, part.y, SIZE, SIZE);
-      });
-
-      // COLLISION ANTAR SNAKE
-      if (id !== playerId) {
-        p.snake.forEach(part => {
-          if (part.x === snake[0].x && part.y === snake[0].y) {
-            alive = false;
-            remove(playerRef);
-            alert("Tabrakan dengan player lain!");
-          }
-        });
-      }
+    data.board.forEach((v, i) => {
+      cells[i].innerText = v;
     });
 
-    document.getElementById("scoreText").innerText = "Score: " + score;
+    const win = checkWin(data.board);
+    if (win) {
+      info.innerText = "Pemenang: " + win;
+      resetBtn.style.display = "inline";
+    } else if (!data.board.includes("")) {
+      info.innerText = "Seri!";
+      resetBtn.style.display = "inline";
+    } else {
+      info.innerText = `Giliran: ${data.turn}`;
+    }
   });
 }
 
-/* ========== CLEANUP ========== */
+/* ===== MOVE ===== */
+function makeMove(i) {
+  const roomRef = ref(db, `rooms/${room}`);
+  onValue(roomRef, snap => {
+    const data = snap.val();
+    if (!data) return;
+    if (data.turn !== symbol) return;
+    if (data.board[i] !== "") return;
+
+    data.board[i] = symbol;
+    data.turn = symbol === "X" ? "O" : "X";
+
+    update(roomRef, {
+      board: data.board,
+      turn: data.turn
+    });
+  }, { onlyOnce: true });
+}
+
+/* ===== RESET ===== */
+resetBtn.onclick = () => {
+  set(ref(db, `rooms/${room}/board`), Array(9).fill(""));
+  set(ref(db, `rooms/${room}/turn`), "X");
+  resetBtn.style.display = "none";
+};
+
+/* ===== CHECK WIN ===== */
+function checkWin(b) {
+  const w = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+  for (const [a,b1,c] of w) {
+    if (b[a] && b[a] === b[b1] && b[a] === b[c]) {
+      return b[a];
+    }
+  }
+  return null;
+}
+
+/* ===== CLEANUP ===== */
 window.addEventListener("beforeunload", () => {
   if (room) remove(ref(db, `rooms/${room}/players/${playerId}`));
 });
