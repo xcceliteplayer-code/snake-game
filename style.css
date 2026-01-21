@@ -1,11 +1,15 @@
 body {
   text-align: center;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: Arial;
   background: #f4f4f4;
 }
 
 canvas {
-  background: #fff;
-  border: 3px solid #000;
+  border: 3px solid black;
+  background: white;
   margin-top: 10px;
+}
+
+#lobby {
+  margin-bottom: 10px;
 }
