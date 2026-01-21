@@ -4,10 +4,11 @@ from "https://www.gstatic.com/firebasejs/12.8.0/firebase-database.js";
 
 const boardEl = document.getElementById("board");
 const info = document.getElementById("info");
+const roleInfo = document.getElementById("roleInfo");
 const resetBtn = document.getElementById("resetBtn");
 
 let room = null;
-let role = "spectator"; // X | O | spectator
+let role = null; // X | O | spectator
 const playerId = "p" + Math.floor(Math.random() * 99999);
 
 /* ===== CREATE BOARD ===== */
@@ -20,8 +21,18 @@ for (let i = 0; i < 9; i++) {
   cells.push(div);
 }
 
+/* ===== JOIN AS PLAYER ===== */
+document.getElementById("joinPlayerBtn").onclick = () => {
+  joinRoom("player");
+};
+
+/* ===== JOIN AS SPECTATOR ===== */
+document.getElementById("joinSpectatorBtn").onclick = () => {
+  joinRoom("spectator");
+};
+
 /* ===== JOIN ROOM ===== */
-document.getElementById("joinBtn").onclick = () => {
+function joinRoom(mode) {
   room = document.getElementById("roomInput").value;
   if (!room) return alert("Isi nama room!");
 
@@ -31,30 +42,51 @@ document.getElementById("joinBtn").onclick = () => {
 
   onValue(roomRef, snap => {
     if (!snap.exists()) {
-      set(roomRef, {
-        board: Array(9).fill(""),
-        turn: "X",
-        players: { X: playerId },
-        spectators: {}
-      });
-      role = "X";
+      if (mode === "spectator") {
+        set(roomRef, {
+          board: Array(9).fill(""),
+          turn: "X",
+          players: {},
+          spectators: { [playerId]: true }
+        });
+        role = "spectator";
+      } else {
+        set(roomRef, {
+          board: Array(9).fill(""),
+          turn: "X",
+          players: { X: playerId },
+          spectators: {}
+        });
+        role = "X";
+      }
     } else {
       const data = snap.val();
-      if (!data.players?.X) {
-        role = "X";
-        update(roomRef, { "players/X": playerId });
-      } else if (!data.players?.O) {
-        role = "O";
-        update(roomRef, { "players/O": playerId });
-      } else {
+
+      if (mode === "spectator") {
         role = "spectator";
-        update(roomRef, { [`spectators/${playerId}`]: true });
+        update(roomRef, {
+          [`spectators/${playerId}`]: true
+        });
+      } else {
+        if (!data.players?.X) {
+          role = "X";
+          update(roomRef, { "players/X": playerId });
+        } else if (!data.players?.O) {
+          role = "O";
+          update(roomRef, { "players/O": playerId });
+        } else {
+          alert("Slot player penuh! Join sebagai spectator.");
+          role = "spectator";
+          update(roomRef, {
+            [`spectators/${playerId}`]: true
+          });
+        }
       }
     }
   }, { onlyOnce: true });
 
   listenRoom();
-};
+}
 
 /* ===== LISTENER ===== */
 function listenRoom() {
@@ -70,18 +102,21 @@ function listenRoom() {
       );
     });
 
+    if (role === "spectator") {
+      info.innerText = `👀 Kamu Spectator | Giliran: ${data.turn}`;
+      roleInfo.innerText = "Mode: Spectator (tidak bisa bermain)";
+    } else {
+      info.innerText = `🎮 Kamu Player ${role} | Giliran: ${data.turn}`;
+      roleInfo.innerText = "Mode: Player";
+    }
+
     const win = checkWin(data.board);
     if (win) {
-      info.innerText = `Pemenang: ${win}`;
+      info.innerText = `🏆 Pemenang: ${win}`;
       resetBtn.style.display = role === "spectator" ? "none" : "inline";
     } else if (!data.board.includes("")) {
-      info.innerText = "Seri!";
+      info.innerText = "🤝 Seri!";
       resetBtn.style.display = role === "spectator" ? "none" : "inline";
-    } else {
-      info.innerText =
-        role === "spectator"
-          ? `Menonton | Giliran: ${data.turn}`
-          : `Kamu: ${role} | Giliran: ${data.turn}`;
     }
   });
 }
