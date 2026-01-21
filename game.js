@@ -7,7 +7,7 @@ const info = document.getElementById("info");
 const resetBtn = document.getElementById("resetBtn");
 
 let room = null;
-let symbol = null;
+let role = "spectator"; // X | O | spectator
 const playerId = "p" + Math.floor(Math.random() * 99999);
 
 /* ===== CREATE BOARD ===== */
@@ -34,20 +34,22 @@ document.getElementById("joinBtn").onclick = () => {
       set(roomRef, {
         board: Array(9).fill(""),
         turn: "X",
-        players: { [playerId]: "X" }
+        players: { X: playerId },
+        spectators: {}
       });
-      symbol = "X";
+      role = "X";
     } else {
       const data = snap.val();
-      const players = data.players || {};
-      if (Object.keys(players).length >= 2) {
-        alert("Room penuh!");
-        location.reload();
+      if (!data.players?.X) {
+        role = "X";
+        update(roomRef, { "players/X": playerId });
+      } else if (!data.players?.O) {
+        role = "O";
+        update(roomRef, { "players/O": playerId });
+      } else {
+        role = "spectator";
+        update(roomRef, { [`spectators/${playerId}`]: true });
       }
-      symbol = "O";
-      update(roomRef, {
-        [`players/${playerId}`]: "O"
-      });
     }
   }, { onlyOnce: true });
 
@@ -62,32 +64,41 @@ function listenRoom() {
 
     data.board.forEach((v, i) => {
       cells[i].innerText = v;
+      cells[i].classList.toggle(
+        "clickable",
+        role !== "spectator" && data.turn === role && v === ""
+      );
     });
 
     const win = checkWin(data.board);
     if (win) {
-      info.innerText = "Pemenang: " + win;
-      resetBtn.style.display = "inline";
+      info.innerText = `Pemenang: ${win}`;
+      resetBtn.style.display = role === "spectator" ? "none" : "inline";
     } else if (!data.board.includes("")) {
       info.innerText = "Seri!";
-      resetBtn.style.display = "inline";
+      resetBtn.style.display = role === "spectator" ? "none" : "inline";
     } else {
-      info.innerText = `Giliran: ${data.turn}`;
+      info.innerText =
+        role === "spectator"
+          ? `Menonton | Giliran: ${data.turn}`
+          : `Kamu: ${role} | Giliran: ${data.turn}`;
     }
   });
 }
 
 /* ===== MOVE ===== */
 function makeMove(i) {
+  if (role === "spectator") return;
+
   const roomRef = ref(db, `rooms/${room}`);
   onValue(roomRef, snap => {
     const data = snap.val();
     if (!data) return;
-    if (data.turn !== symbol) return;
+    if (data.turn !== role) return;
     if (data.board[i] !== "") return;
 
-    data.board[i] = symbol;
-    data.turn = symbol === "X" ? "O" : "X";
+    data.board[i] = role;
+    data.turn = role === "X" ? "O" : "X";
 
     update(roomRef, {
       board: data.board,
@@ -120,5 +131,10 @@ function checkWin(b) {
 
 /* ===== CLEANUP ===== */
 window.addEventListener("beforeunload", () => {
-  if (room) remove(ref(db, `rooms/${room}/players/${playerId}`));
+  if (!room) return;
+  if (role === "spectator") {
+    remove(ref(db, `rooms/${room}/spectators/${playerId}`));
+  } else {
+    remove(ref(db, `rooms/${room}/players/${role}`));
+  }
 });
