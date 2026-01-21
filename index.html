@@ -2,18 +2,24 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>Snake Multiplayer Firebase</title>
+  <title>Snake Multiplayer Room</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <h2>🐍 Snake Multiplayer</h2>
-<p>Buka di 2 tab / 2 device</p>
+
+<div id="lobby">
+  <input id="roomInput" placeholder="Nama Room">
+  <button id="joinBtn">Join Room</button>
+</div>
+
+<h3 id="roomText"></h3>
+<h4 id="scoreText"></h4>
 
 <canvas id="game" width="400" height="400"></canvas>
 
 <script type="module" src="firebase.js"></script>
 <script type="module" src="game.js"></script>
-
 </body>
 </html>
