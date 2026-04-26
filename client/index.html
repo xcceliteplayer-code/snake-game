@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>UNO x Ryzen</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🃏</text></svg>">
+<link rel="stylesheet" href="css/lobby.css">
+<link rel="stylesheet" href="css/game.css">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+     LOADING SCREEN
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ -->
+<div id="s-loading" class="screen-loading">
+  <div class="loading-inner">
+    <div class="loading-logo">
+      <span class="ll-uno">UNO</span>
+      <span class="ll-x">✕</span>
+      <span class="ll-ryzen">RYZEN</span>
+    </div>
+    <div class="loading-cards">
+      <div class="lc lc-r">7</div>
+      <div class="lc lc-b">+2</div>
+      <div class="lc lc-g">⇄</div>
+      <div class="lc lc-y">⊘</div>
+      <div class="lc lc-w">🌈</div>
+    </div>
+    <div class="loading-bar-track"><div class="loading-bar-fill" id="loadBar"></div></div>
+    <div class="loading-msg" id="loadMsg">Mengacak kartu...</div>
+  </div>
+</div>
+
+<!-- ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+     NAME SCREEN
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ -->
+<div id="s-name" class="screen" style="display:none">
+  <div class="name-card">
+    <div class="brand"><span class="b-uno">UNO</span><span class="b-x">✕</span><span class="b-ry">RYZEN</span></div>
+    <p class="name-sub">Siapa namamu?</p>
+    <div class="av-section">
+      <div class="av-label">Pilih Avatar</div>
+      <div class="av-grid" id="avGrid"></div>
+    </div>
+    <input class="text-input" type="text" id="nameInp" placeholder="Nama kamu..." maxlength="16"
+           autocomplete="off" spellcheck="false" onkeydown="if(event.key==='Enter')App.confirmName()">
+    <button class="btn-primary" onclick="App.confirmName()">Masuk Lobby →</button>
+  </div>
+</div>
+
+<!-- ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+     LOBBY SCREEN
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ -->
+<div id="s-lobby" class="screen" style="display:none">
+  <div class="lobby-wrap">
+
+    <!-- LEFT PANEL -->
+    <div class="lp-left">
+      <div class="player-tag">
+        <span id="ptAv"></span>
+        <span id="ptName"></span>
+        <button onclick="App.goName()" title="Ganti nama">✏️</button>
+      </div>
+
+      <div class="panel">
+        <h2 class="panel-title">🎮 Main UNO</h2>
+        <button class="btn-create" onclick="Lobby.showCreate()">➕ Buat Room</button>
+        <div class="or-divider">— atau —</div>
+        <div class="join-row">
+          <input class="text-input" type="text" id="joinInp" placeholder="Kode Room (6 huruf)"
+                 maxlength="6" style="text-transform:uppercase;text-align:center;font-family:'Fredoka One',cursive;font-size:1.2rem;letter-spacing:.12em"
+                 onkeydown="if(event.key==='Enter')Lobby.joinRoom()">
+          <button class="btn-blue" onclick="Lobby.joinRoom()">Gabung</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="pub-header">
+          <h3>🌐 Room Publik</h3>
+          <button class="btn-icon" onclick="Lobby.refreshPublic()" title="Refresh">🔄</button>
+        </div>
+        <div id="pubList"><div class="empty-msg">Tidak ada room publik</div></div>
+      </div>
+
+      <div class="panel">
+        <h3 style="margin-bottom:10px">📊 Statistik Sesi</h3>
+        <div class="stat-row"><span>Game Dimainkan</span><b id="stPlayed">0</b></div>
+        <div class="stat-row"><span>Menang</span><b id="stWon">0</b></div>
+        <div class="stat-row"><span>Kartu Dimainkan</span><b id="stCards">0</b></div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL: Global Chat -->
+    <div class="lp-right">
+      <div class="chat-panel">
+        <div class="cp-header">
+          <span>💬 Chat Global</span>
+          <span id="onlineInd" class="online-dot">🟢 Online</span>
+        </div>
+        <div class="cp-msgs" id="gMsgs"></div>
+        <div class="cp-emojis" id="gEmojis"></div>
+        <div class="cp-input">
+          <input class="text-input" type="text" id="gChatInp" placeholder="Ketik pesan..."
+                 maxlength="200" onkeydown="if(event.key==='Enter')Lobby.sendGlobal()">
+          <button class="btn-send" onclick="Lobby.sendGlobal()">📤</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+     ROOM LOBBY SCREEN
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ -->
+<div id="s-room" class="screen" style="display:none">
+  <div class="room-wrap">
+    <div class="room-header">
+      <div class="room-code-area">
+        <span class="rc-label">KODE ROOM</span>
+        <span class="rc-code" id="roomCode">------</span>
+        <button class="btn-icon" onclick="App.copyCode()" title="Salin kode">📋</button>
+      </div>
+      <div class="room-badges" id="roomBadges"></div>
+    </div>
+
+    <div class="room-body">
+      <div class="room-players" id="roomPlayers"></div>
+      <div class="room-chat">
+        <div class="rch-title">💬 Chat Room</div>
+        <div class="cp-msgs" id="rMsgs"></div>
+        <div class="cp-input">
+          <input class="text-input" type="text" id="rChatInp" placeholder="Ketik..."
+                 maxlength="200" onkeydown="if(event.key==='Enter')Lobby.sendRoomChat()">
+          <button class="btn-send" onclick="Lobby.sendRoomChat()">📤</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="room-footer">
+      <button class="btn-leave" onclick="Lobby.leaveRoom()">← Keluar</button>
+      <div id="hostActions" style="display:none">
+        <button class="btn-primary" onclick="Lobby.startGame()">🎮 Mulai Game</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+     GAME SCREEN
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ -->
+<div id="s-game" class="screen" style="display:none">
+
+  <!-- TOP BAR -->
+  <div class="gbar">
+    <div class="gbar-l">
+      <span class="gbar-logo">UNO<span class="gbar-x">✕</span>RYZEN</span>
+      <span class="gbar-room" id="gbarRoom">------</span>
+    </div>
+    <div class="gbar-c">
+      <div class="timer-wrap">
+        <svg class="timer-svg" viewBox="0 0 36 36">
+          <circle class="timer-bg"   cx="18" cy="18" r="15.9"/>
+          <circle class="timer-ring" cx="18" cy="18" r="15.9" id="timerRing"/>
+        </svg>
+        <span class="timer-num" id="timerNum">--</span>
+      </div>
+    </div>
+    <div class="gbar-r">
+      <button class="gb-btn" onclick="Game.toggleChat()" title="Chat">💬</button>
+      <button class="gb-btn" onclick="Game.toggleLog()"  title="Log">📜</button>
+      <button class="gb-btn" id="devToggleBtn" onclick="Game.toggleDev()" title="Dev (F2)">🔧</button>
+      <button class="gb-btn danger" onclick="Game.leave()">✕</button>
+    </div>
+  </div>
+
+  <!-- GAME AREA -->
+  <div class="game-area">
+    <!-- Opponents -->
+    <div class="opp-row" id="oppRow"></div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+      <div class="table-felt">
+        <div class="dir-ind" id="dirInd">↻</div>
+
+        <div class="piles">
+          <!-- Deck -->
+          <div class="deck" id="deckEl" onclick="Game.draw()" title="Klik untuk ambil kartu">
+            <div class="card-back"><span class="cb-logo">UNO</span></div>
+            <div class="pile-cnt" id="deckCnt">108</div>
+          </div>
+
+          <!-- Discard -->
+          <div class="discard-wrap">
+            <div class="discard" id="discardEl"></div>
+            <div class="pile-cnt" id="discardCnt">0</div>
+          </div>
+        </div>
+
+        <!-- Draw stack indicator -->
+        <div class="stack-badge" id="stackBadge" style="display:none">
+          <span id="stackNum">+0</span>
+        </div>
+
+        <!-- Wild color picker (desktop) -->
+        <div class="color-picker" id="colorPicker" style="display:none">
+          <div class="cp-ttl">Pilih Warna</div>
+          <div class="cp-btns">
+            <button class="cpb red"    onclick="Game.pickColor('red')">🔴</button>
+            <button class="cpb blue"   onclick="Game.pickColor('blue')">🔵</button>
+            <button class="cpb green"  onclick="Game.pickColor('green')">🟢</button>
+            <button class="cpb yellow" onclick="Game.pickColor('yellow')">🟡</button>
+          </div>
+        </div>
+
+        <!-- Challenge panel -->
+        <div class="chal-panel" id="chalPanel" style="display:none">
+          <div class="chal-title">Wild +4 dimainkan!</div>
+          <div class="chal-sub">Mau challenge?</div>
+          <div class="chal-timer" id="chalNum">7</div>
+          <div class="chal-btns">
+            <button class="chal-yes" onclick="Game.challenge()">⚔️ Challenge!</button>
+            <button class="chal-no"  onclick="Game.acceptDraw()">✅ Terima Saja</button>
+          </div>
+        </div>
+
+        <!-- UNO Button -->
+        <button class="uno-btn" id="unoBtn" onclick="Game.callUno()">UNO!</button>
+      </div>
+    </div>
+
+    <!-- My hand -->
+    <div class="my-area">
+      <div class="my-info" id="myInfo"></div>
+      <div class="hand-wrap">
+        <div class="hand-scroll" id="myHand"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Side: Chat -->
+  <div class="side-panel" id="sideChat">
+    <div class="sp-header">💬 Chat <button onclick="Game.toggleChat()">✕</button></div>
+    <div class="sp-msgs"   id="gameChatMsgs"></div>
+    <div class="sp-emojis" id="gameEmojis"></div>
+    <div class="sp-input">
+      <input class="text-input" type="text" id="gameChatInp" placeholder="Pesan..."
+             maxlength="200" onkeydown="if(event.key==='Enter')Game.sendChat()">
+      <button class="btn-send" onclick="Game.sendChat()">📤</button>
+    </div>
+  </div>
+
+  <!-- Side: Log -->
+  <div class="side-panel" id="sideLog">
+    <div class="sp-header">📜 Log <button onclick="Game.toggleLog()">✕</button></div>
+    <div class="sp-msgs log-msgs" id="logMsgs"></div>
+  </div>
+
+  <!-- Emoji floats -->
+  <div id="emojiFloat" style="position:fixed;inset:0;pointer-events:none;z-index:300"></div>
+</div>
+
+<!-- ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+     MODALS
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ -->
+
+<!-- Create Room Modal -->
+<div id="m-create" class="modal" style="display:none">
+  <div class="modal-box">
+    <h2>➕ Buat Room</h2>
+    <div class="mform">
+      <label>Max Pemain
+        <select id="cfMax">
+          <option value="2">2</option><option value="4" selected>4</option>
+          <option value="6">6</option><option value="8">8</option><option value="10">10</option>
+        </select>
+      </label>
+      <label>Mode Game
+        <select id="cfMode">
+          <option value="classic">Classic</option>
+          <option value="fast">Fast Mode (timer 15s)</option>
+          <option value="chaos">Chaos Mode</option>
+        </select>
+      </label>
+      <label>Timer Giliran (detik)
+        <input type="number" id="cfTimer" value="30" min="10" max="60" class="text-input">
+      </label>
+      <label class="cb-label"><input type="checkbox" id="cfStack" checked> Stack +2/+4</label>
+      <label class="cb-label"><input type="checkbox" id="cfJump">  Jump-In Rule</label>
+      <label class="cb-label"><input type="checkbox" id="cf70">    7-0 Swap Rule</label>
+      <label class="cb-label"><input type="checkbox" id="cfPub" checked> Room Publik</label>
+    </div>
+    <div class="modal-acts">
+      <button class="btn-cancel" onclick="App.closeModal('m-create')">Batal</button>
+      <button class="btn-primary" onclick="Lobby.createRoom()">Buat Room</button>
+    </div>
+  </div>
+</div>
+
+<!-- Wild color modal (mobile) -->
+<div id="m-wild" class="modal" style="display:none">
+  <div class="modal-box" style="max-width:280px">
+    <h2>🌈 Pilih Warna</h2>
+    <div class="wild-grid">
+      <button class="wbtn red"    onclick="Game.pickColorModal('red')">🔴 Merah</button>
+      <button class="wbtn blue"   onclick="Game.pickColorModal('blue')">🔵 Biru</button>
+      <button class="wbtn green"  onclick="Game.pickColorModal('green')">🟢 Hijau</button>
+      <button class="wbtn yellow" onclick="Game.pickColorModal('yellow')">🟡 Kuning</button>
+    </div>
+  </div>
+</div>
+
+<!-- Game Over modal -->
+<div id="m-gameover" class="modal" style="display:none">
+  <div class="modal-box">
+    <div class="go-icon"   id="goIcon">🏆</div>
+    <h2 class="go-title"   id="goTitle">Selesai!</h2>
+    <div class="go-winner" id="goWinner"></div>
+    <div class="modal-acts">
+      <button class="btn-green"  onclick="Game.restart()">🔄 Main Lagi</button>
+      <button class="btn-cancel" onclick="Game.leave()">🚪 Keluar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+     DEV PANEL (F2, password: ryzenshiky)
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ -->
+<div id="devPanel" class="dev-panel" style="display:none">
+  <div class="dev-hdr">
+    🔧 DEV PANEL
+    <span style="font-size:10px;opacity:.6">F2 | F3=debug | pw: ryzenshiky</span>
+    <button onclick="Game.toggleDev()">✕</button>
+  </div>
+  <div class="dev-grid">
+    <button class="dev-btn" onclick="Game.dev('forceWin')">🏆 Force Win</button>
+    <button class="dev-btn" onclick="Game.dev('revealAll')">👁 Reveal All</button>
+    <button class="dev-btn" onclick="Game.dev('skipAll')">⏭ Skip All</button>
+    <button class="dev-btn" onclick="Game.dev('freezeGame')">❄️ Freeze</button>
+    <button class="dev-btn" onclick="Game.devLag()">🐌 Sim Lag</button>
+    <button class="dev-btn" onclick="Game.devColor()">🎨 Set Color</button>
+  </div>
+  <div class="dev-spawn">
+    <div class="dev-spawn-lbl">SPAWN KARTU</div>
+    <div class="dev-spawn-row">
+      <select id="devColor">
+        <option value="red">Merah</option><option value="blue">Biru</option>
+        <option value="green">Hijau</option><option value="yellow">Kuning</option>
+        <option value="wild">Wild</option>
+      </select>
+      <select id="devVal">
+        <option>0</option><option>1</option><option>2</option><option>3</option>
+        <option>4</option><option>5</option><option>6</option><option>7</option>
+        <option>8</option><option>9</option>
+        <option value="skip">Skip</option><option value="reverse">Reverse</option>
+        <option value="draw2">+2</option><option value="wild">Wild</option>
+        <option value="wild4">Wild+4</option>
+      </select>
+      <button class="dev-btn" onclick="Game.devSpawn()">✚</button>
+    </div>
+  </div>
+  <div class="dev-log" id="devLog"></div>
+</div>
+
+<!-- Debug panel (F3) -->
+<div id="debugPanel" class="debug-panel" style="display:none">
+  <div class="dev-hdr">🐛 DEBUG (F3) <button onclick="Game.toggleDebug()">✕</button></div>
+  <pre id="debugOut" style="font-size:10px;color:#2a9d3f;overflow:auto;max-height:250px;margin:0;padding:8px"></pre>
+</div>
+
+<!-- Global toast -->
+<div id="toast" class="toast" style="display:none"></div>
+
+<!-- UNO shout -->
+<div id="unoShout" class="uno-shout" style="display:none">UNO!</div>
+
+<!-- ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+     SCRIPTS (order matters!)
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ -->
+<script src="js/config.js"></script>
+<script src="js/lobby.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
